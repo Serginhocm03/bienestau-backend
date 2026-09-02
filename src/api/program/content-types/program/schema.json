@@ -1,0 +1,27 @@
+{
+  "kind": "collectionType",
+  "collectionName": "programs",
+  "info": {
+    "singularName": "program",
+    "pluralName": "programs",
+    "displayName": "Program",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "section": {
+      "type": "component",
+      "repeatable": false,
+      "component": "section-components.section",
+      "required": true
+    },
+    "action_line": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::action-line.action-line",
+      "inversedBy": "programs"
+    }
+  }
+}

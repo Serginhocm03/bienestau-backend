@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "notification_tokens",
+  "info": {
+    "singularName": "notification-token",
+    "pluralName": "notification-tokens",
+    "displayName": "Notification Token"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "token": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "platform": {
+      "type": "enumeration",
+      "enum": [
+        "android",
+        "ios"
+      ]
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "notification_tokens"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    },
+    "last_used": {
+      "type": "datetime"
+    }
+  }
+}

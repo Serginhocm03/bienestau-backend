@@ -1,0 +1,47 @@
+{
+  "kind": "collectionType",
+  "collectionName": "action_lines",
+  "info": {
+    "singularName": "action-line",
+    "pluralName": "action-lines",
+    "displayName": "Action line"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "header": {
+      "type": "component",
+      "repeatable": false,
+      "component": "components.header",
+      "required": true
+    },
+    "directors": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::person.person",
+      "mappedBy": "action_line"
+    },
+    "contact": {
+      "type": "component",
+      "repeatable": false,
+      "component": "components.contact",
+      "required": true
+    },
+    "content": {
+      "type": "dynamiczone",
+      "components": [
+        "section-components.section",
+        "section-components.carousel",
+        "section-components.accordion-section"
+      ],
+      "required": true
+    },
+    "programs": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::program.program",
+      "mappedBy": "action_line"
+    }
+  }
+}

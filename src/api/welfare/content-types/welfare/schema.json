@@ -1,0 +1,41 @@
+{
+  "kind": "singleType",
+  "collectionName": "welfares",
+  "info": {
+    "singularName": "welfare",
+    "pluralName": "welfares",
+    "displayName": "Welfare",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "header": {
+      "type": "component",
+      "repeatable": false,
+      "component": "components.header",
+      "required": true
+    },
+    "director": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::person.person"
+    },
+    "contact": {
+      "type": "component",
+      "repeatable": false,
+      "component": "components.contact",
+      "required": true
+    },
+    "content": {
+      "type": "dynamiczone",
+      "components": [
+        "section-components.section",
+        "section-components.carousel",
+        "section-components.accordion-section"
+      ],
+      "required": true
+    }
+  }
+}

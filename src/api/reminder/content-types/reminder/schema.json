@@ -1,0 +1,32 @@
+{
+  "kind": "collectionType",
+  "collectionName": "reminders",
+  "info": {
+    "singularName": "reminder",
+    "pluralName": "reminders",
+    "displayName": "Reminder",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text",
+      "required": false
+    },
+    "to": {
+      "type": "enumeration",
+      "enum": [
+        "all",
+        "students",
+        "managers"
+      ],
+      "default": "all"
+    }
+  }
+}

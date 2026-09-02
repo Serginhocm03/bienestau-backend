@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_section_components_accordion_sections",
+  "info": {
+    "displayName": "AccordionSection",
+    "icon": "stack"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": false
+    },
+    "collapsibles": {
+      "type": "component",
+      "repeatable": true,
+      "component": "section-components.section"
+    }
+  }
+}

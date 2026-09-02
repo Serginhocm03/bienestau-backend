@@ -1,0 +1,29 @@
+{
+  "kind": "collectionType",
+  "collectionName": "people",
+  "info": {
+    "singularName": "person",
+    "pluralName": "people",
+    "displayName": "Person",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "role": {
+      "type": "string",
+      "required": false
+    },
+    "action_line": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::action-line.action-line",
+      "inversedBy": "directors"
+    }
+  }
+}

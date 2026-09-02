@@ -1,0 +1,30 @@
+{
+  "kind": "singleType",
+  "collectionName": "homes",
+  "info": {
+    "singularName": "home",
+    "pluralName": "homes",
+    "displayName": "Home",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "header": {
+      "type": "component",
+      "repeatable": false,
+      "component": "components.header",
+      "required": true
+    },
+    "content": {
+      "type": "dynamiczone",
+      "components": [
+        "section-components.section",
+        "section-components.carousel",
+        "section-components.accordion-section"
+      ],
+      "required": true
+    }
+  }
+}

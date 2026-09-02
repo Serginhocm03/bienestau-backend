@@ -1,0 +1,20 @@
+{
+  "kind": "singleType",
+  "collectionName": "reminder_pages",
+  "info": {
+    "singularName": "reminder-page",
+    "pluralName": "reminder-pages",
+    "displayName": "ReminderPage"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "header": {
+      "type": "component",
+      "repeatable": false,
+      "component": "components.header",
+      "required": true
+    }
+  }
+}

@@ -1,0 +1,14 @@
+export default {
+  routes: [
+    {
+      method: 'POST',
+      path: '/notifications/register-token',
+      handler: 'notification-token.registerToken',
+      config: {
+        policies: [],
+        middlewares: [],
+        auth: false,  // Temporal para debugging
+      },
+    },
+  ],
+};
