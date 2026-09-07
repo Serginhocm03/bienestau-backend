@@ -25,6 +25,9 @@
       "type": "media",
       "multiple": false,
       "required": true
+    },
+    "fecha_evento": {
+      "type": "date"
     }
   }
 }

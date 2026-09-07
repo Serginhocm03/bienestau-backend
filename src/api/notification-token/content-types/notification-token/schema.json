@@ -7,7 +7,7 @@
     "displayName": "Notification Token"
   },
   "options": {
-    "draftAndPublish": true
+    "draftAndPublish": false
   },
   "attributes": {
     "token": {
