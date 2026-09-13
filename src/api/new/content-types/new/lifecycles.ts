@@ -18,11 +18,11 @@ export default {
     const { result } = event;
     const docId = result.documentId || result.id.toString();
     try {
-      const reminders = await strapi.documents('api::reminder.reminder').findMany({
-        filters: { contentId: docId, contentType: 'news' }
+      const reminders = await strapi.db.query('api::reminder.reminder').findMany({
+        where: { contentId: docId, contentType: 'news' }
       });
       for (const r of reminders) {
-        await strapi.documents('api::reminder.reminder').delete({ documentId: r.documentId });
+        await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
       }
     } catch (error) {
       console.error('❌ Error borrando avisos:', error);
@@ -35,25 +35,26 @@ async function processContentAndNotify(result, type) {
   const expo = new Expo();
 
   try {
-    const existing = await strapi.documents('api::reminder.reminder').findMany({
-      filters: { contentId: docId, contentType: type }
+    const existing = await strapi.db.query('api::reminder.reminder').findMany({
+      where: { contentId: docId, contentType: type }
     });
     for (const r of existing) {
-      await strapi.documents('api::reminder.reminder').delete({ documentId: r.documentId });
+      await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
     }
 
     const titlePrefix = type === 'event' ? 'Nuevo Evento' : 'Nueva Noticia';
-    await strapi.documents('api::reminder.reminder').create({
+    await strapi.db.query('api::reminder.reminder').create({
       data: {
         title: `${titlePrefix}: ${result.title}`,
         description: result.description || 'Consulta los detalles en la app',
         to: 'all',
         contentId: docId,
         contentType: type,
+        publishedAt: new Date().toISOString(),
       },
     });
 
-    const tokens = await strapi.documents('api::notification-token.notification-token').findMany();
+    const tokens = await strapi.db.query('api::notification-token.notification-token').findMany();
     const expoTokens = tokens.map(t => t.token).filter(token => Expo.isExpoPushToken(token));
 
     if (expoTokens.length > 0) {

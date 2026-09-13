@@ -18,11 +18,11 @@ export default {
     const { result } = event;
     const docId = result.documentId || result.id.toString();
     try {
-      const reminders = await strapi.documents('api::reminder.reminder').findMany({
-        filters: { contentId: docId, contentType: 'event' }
+      const reminders = await strapi.db.query('api::reminder.reminder').findMany({
+        where: { contentId: docId, contentType: 'event' }
       });
       for (const r of reminders) {
-        await strapi.documents('api::reminder.reminder').delete({ documentId: r.documentId });
+        await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
       }
     } catch (error) {
       console.error('❌ Error borrando avisos:', error);
@@ -35,17 +35,17 @@ async function processContentAndNotify(result, type) {
   const expo = new Expo();
 
   try {
-    // 1. Limpiar duplicados previos
-    const existing = await strapi.documents('api::reminder.reminder').findMany({
-      filters: { contentId: docId, contentType: type }
+    // 1. Evitar duplicados
+    const existing = await strapi.db.query('api::reminder.reminder').findMany({
+      where: { contentId: docId, contentType: type }
     });
     for (const r of existing) {
-      await strapi.documents('api::reminder.reminder').delete({ documentId: r.documentId });
+      await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
     }
 
-    // 2. Crear el nuevo aviso en la DB
+    // 2. Crear el aviso
     const titlePrefix = type === 'event' ? 'Nuevo Evento' : 'Nueva Noticia';
-    await strapi.documents('api::reminder.reminder').create({
+    await strapi.db.query('api::reminder.reminder').create({
       data: {
         title: `${titlePrefix}: ${result.title}`,
         description: result.description || 'Consulta los detalles en la app',
@@ -53,12 +53,15 @@ async function processContentAndNotify(result, type) {
         fecha_evento: result.fecha_evento || null,
         contentId: docId,
         contentType: type,
+        publishedAt: new Date().toISOString(),
       },
     });
 
-    // 3. ENVIAR NOTIFICACIÓN PUSH DIRECTA
-    const tokens = await strapi.documents('api::notification-token.notification-token').findMany();
+    // 3. Obtener tokens con consulta directa (más fiable)
+    const tokens = await strapi.db.query('api::notification-token.notification-token').findMany();
     const expoTokens = tokens.map(t => t.token).filter(token => Expo.isExpoPushToken(token));
+
+    console.log(`📊 Intentando notificar a ${expoTokens.length} dispositivos.`);
 
     if (expoTokens.length > 0) {
       const message = type === 'event'
@@ -79,9 +82,9 @@ async function processContentAndNotify(result, type) {
       for (const chunk of chunks) {
         await expo.sendPushNotificationsAsync(chunk);
       }
-      console.log(`✅ Notificación enviada a ${expoTokens.length} dispositivos.`);
+      console.log(`✅ Notificación enviada correctamente.`);
     }
   } catch (error) {
-    console.error('❌ Error en proceso de notificación:', error);
+    console.error('❌ Error fatal en proceso de notificación:', error);
   }
 }
