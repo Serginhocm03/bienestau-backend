@@ -4,90 +4,44 @@ export default factories.createCoreController(
   'api::notification-token.notification-token',
   ({ strapi }) => ({
     async create(ctx) {
-      const { token, platform } = ctx.request.body.data;
+      const data = ctx.request.body.data || ctx.request.body;
+      const { token, platform } = data;
       const user = ctx.state.user;
 
-      if (!user) {
-        return ctx.unauthorized('Usuario no autenticado');
-      }
-
-      if (!token || !platform) {
-        return ctx.badRequest('Token y plataforma son requeridos');
-      }
-
-      console.log(`📱 Registro de token para usuario ${user.id}`);
+      if (!user) return ctx.unauthorized('Usuario no identificado');
+      if (!token) return ctx.badRequest('Token faltante');
 
       try {
-        // Buscar token existente
-        const existingToken = await strapi.entityService.findMany(
-          'api::notification-token.notification-token',
-          {
-            filters: {
-              token,
-            },
-            populate: ['user'],
+        // 1. Buscamos cualquier registro que tenga este mismo TOKEN (de este celular)
+        const existing = await strapi.documents('api::notification-token.notification-token').findMany({
+          filters: { token: token },
+        });
+
+        // 2. Borramos los registros viejos de este dispositivo para que no haya basura
+        if (existing.length > 0) {
+          for (const doc of existing) {
+            await strapi.documents('api::notification-token.notification-token').delete({
+              documentId: doc.documentId,
+            });
           }
-        );
-
-        if (existingToken && existingToken.length > 0) {
-          console.log('♻️ Token existente, actualizando...');
-          
-          const updated = await strapi.entityService.update(
-            'api::notification-token.notification-token',
-            existingToken[0].id,
-            {
-              data: {
-                user: user.id,
-                platform,
-                active: true,
-              },
-            }
-          );
-
-          return { data: updated };
+          console.log(`🧹 Limpieza de tokens antiguos completada para: ${user.username}`);
         }
 
-        // Desactivar tokens anteriores del mismo usuario y plataforma
-        const userTokens = await strapi.entityService.findMany(
-          'api::notification-token.notification-token',
-          {
-            filters: {
-              user: user.id,
-              platform,
-              active: true,
-            },
-          }
-        );
+        // 3. Creamos el registro único y limpio como ACTIVO
+        const newToken = await strapi.documents('api::notification-token.notification-token').create({
+          data: {
+            token,
+            platform: platform || 'android',
+            user: user.id,
+            active: true,
+          },
+        });
 
-        for (const oldToken of userTokens) {
-          await strapi.entityService.update(
-            'api::notification-token.notification-token',
-            oldToken.id,
-            {
-              data: { active: false },
-            }
-          );
-        }
-
-        console.log('✅ Creando nuevo token');
-
-        // Crear nuevo token
-        const newToken = await strapi.entityService.create(
-          'api::notification-token.notification-token',
-          {
-            data: {
-              token,
-              platform,
-              user: user.id,
-              active: true,
-            },
-          }
-        );
-
+        console.log(`✅ Dispositivo de ${user.username} registrado correctamente.`);
         return { data: newToken };
       } catch (error) {
-        console.error('❌ Error en notification-token controller:', error);
-        return ctx.internalServerError('Error al procesar el token');
+        console.error('❌ Error en el registro de dispositivo:', error);
+        return ctx.internalServerError('Error servidor');
       }
     },
   })

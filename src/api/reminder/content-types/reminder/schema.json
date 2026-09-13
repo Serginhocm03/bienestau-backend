@@ -30,6 +30,12 @@
     },
     "fecha_evento": {
       "type": "date"
+    },
+    "contentId": {
+      "type": "string"
+    },
+    "contentType": {
+      "type": "string"
     }
   }
 }

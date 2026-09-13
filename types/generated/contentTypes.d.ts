@@ -649,6 +649,8 @@ export interface ApiReminderReminder extends Struct.CollectionTypeSchema {
     draftAndPublish: false;
   };
   attributes: {
+    contentId: Schema.Attribute.String;
+    contentType: Schema.Attribute.String;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
