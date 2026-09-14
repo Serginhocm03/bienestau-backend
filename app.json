@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d5ca6aff-1f4f-4255-89e0-f6a8e7583f11"
+      }
+    },
+    "android": {
+      "package": "com.sergiocabrera3.bienestaubackend"
+    }
+  }
+}

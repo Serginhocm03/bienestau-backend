@@ -4,15 +4,13 @@ const { Expo } = require('expo-server-sdk');
 export default {
   async afterCreate(event) {
     const { result } = event;
-    if (result.publishedAt) {
-      await processContentAndNotify(result, 'news');
-    }
+    console.log('✨ [TRIGGER] Nueva Noticia detectada:', result.title);
+    await processContentAndNotify(result, 'news');
   },
   async afterUpdate(event) {
     const { result } = event;
-    if (result.publishedAt) {
-      await processContentAndNotify(result, 'news');
-    }
+    console.log('🔄 [TRIGGER] Noticia actualizada:', result.title);
+    await processContentAndNotify(result, 'news');
   },
   async afterDelete(event) {
     const { result } = event;
@@ -25,12 +23,14 @@ export default {
         await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
       }
     } catch (error) {
-      console.error('❌ Error borrando avisos:', error);
+      console.error('❌ Error en limpieza de noticia:', error);
     }
   }
 };
 
 async function processContentAndNotify(result, type) {
+  if (!result.publishedAt) return;
+
   const docId = result.documentId || result.id.toString();
   const expo = new Expo();
 
@@ -58,15 +58,11 @@ async function processContentAndNotify(result, type) {
     const expoTokens = tokens.map(t => t.token).filter(token => Expo.isExpoPushToken(token));
 
     if (expoTokens.length > 0) {
-      const message = type === 'event'
-        ? `BienestAU te invita al siguiente evento: ${result.title}`
-        : `BienestAU: Hay una nueva noticia: ${result.title}`;
-
       const messages = expoTokens.map(token => ({
         to: token,
         sound: 'default',
         title: 'BienestAU 🔔',
-        body: message,
+        body: `BienestAU: Hay una nueva noticia: ${result.title}`,
         priority: 'high',
         badge: 1,
         data: { type: 'reminder', contentId: docId, contentType: type },
@@ -76,9 +72,9 @@ async function processContentAndNotify(result, type) {
       for (const chunk of chunks) {
         await expo.sendPushNotificationsAsync(chunk);
       }
-      console.log(`✅ Notificación de noticia enviada.`);
+      console.log(`✅ [PUSH] Notificación de noticia enviada a ${expoTokens.length} dispositivos.`);
     }
   } catch (error) {
-    console.error('❌ Error enviando noticia:', error);
+    console.error('❌ [ERROR] Fallo enviando noticia:', error);
   }
 }

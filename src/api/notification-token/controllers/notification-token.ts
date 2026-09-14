@@ -5,43 +5,40 @@ export default factories.createCoreController(
   ({ strapi }) => ({
     async create(ctx) {
       const data = ctx.request.body.data || ctx.request.body;
-      const { token, platform } = data;
+      const { token } = data;
       const user = ctx.state.user;
 
-      if (!user) return ctx.unauthorized('Usuario no identificado');
-      if (!token) return ctx.badRequest('Token faltante');
+      if (!user || !token) return ctx.badRequest('Faltan datos');
 
       try {
-        // 1. Buscamos cualquier registro que tenga este mismo TOKEN (de este celular)
-        const existing = await strapi.documents('api::notification-token.notification-token').findMany({
-          filters: { token: token },
+        // Buscamos si ya existe ese token para cualquier usuario
+        const existing = await strapi.db.query('api::notification-token.notification-token').findOne({
+          where: { token: token }
         });
 
-        // 2. Borramos los registros viejos de este dispositivo para que no haya basura
-        if (existing.length > 0) {
-          for (const doc of existing) {
-            await strapi.documents('api::notification-token.notification-token').delete({
-              documentId: doc.documentId,
-            });
-          }
-          console.log(`🧹 Limpieza de tokens antiguos completada para: ${user.username}`);
+        if (existing) {
+          // Si ya existe, lo actualizamos al usuario actual y lo activamos
+          const updated = await strapi.db.query('api::notification-token.notification-token').update({
+            where: { id: existing.id },
+            data: { user: user.id, active: true }
+          });
+          return { data: updated };
         }
 
-        // 3. Creamos el registro único y limpio como ACTIVO
-        const newToken = await strapi.documents('api::notification-token.notification-token').create({
+        // Si es nuevo, lo creamos
+        const newToken = await strapi.db.query('api::notification-token.notification-token').create({
           data: {
             token,
-            platform: platform || 'android',
             user: user.id,
             active: true,
+            platform: 'android'
           },
         });
 
-        console.log(`✅ Dispositivo de ${user.username} registrado correctamente.`);
         return { data: newToken };
       } catch (error) {
-        console.error('❌ Error en el registro de dispositivo:', error);
-        return ctx.internalServerError('Error servidor');
+        console.error('❌ Error en el controlador de tokens:', error);
+        return ctx.internalServerError('Error al registrar dispositivo');
       }
     },
   })
