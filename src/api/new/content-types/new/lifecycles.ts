@@ -42,7 +42,7 @@ async function processContentAndNotify(result, type) {
       await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
     }
 
-    const titlePrefix = type === 'event' ? 'Nuevo Evento' : 'Nueva Noticia';
+    const titlePrefix = 'BienestAU te invita';
     await strapi.db.query('api::reminder.reminder').create({
       data: {
         title: `${titlePrefix}: ${result.title}`,
@@ -54,7 +54,9 @@ async function processContentAndNotify(result, type) {
       },
     });
 
-    const tokens = await strapi.db.query('api::notification-token.notification-token').findMany();
+    const tokens = await strapi.db.query('api::notification-token.notification-token').findMany({
+      where: { active: true }
+    });
     const expoTokens = tokens.map(t => t.token).filter(token => Expo.isExpoPushToken(token));
 
     if (expoTokens.length > 0) {
@@ -62,9 +64,10 @@ async function processContentAndNotify(result, type) {
         to: token,
         sound: 'default',
         title: 'BienestAU 🔔',
-        body: `BienestAU: Hay una nueva noticia: ${result.title}`,
+        body: `BienestAU te invita a leer nuestra nueva noticia: ${result.title}`,
         priority: 'high',
         badge: 1,
+        channelId: 'default',
         data: { type: 'reminder', contentId: docId, contentType: type },
       }));
 
