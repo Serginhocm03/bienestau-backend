@@ -11,27 +11,32 @@ export default factories.createCoreController(
       if (!user || !token) return ctx.badRequest('Faltan datos');
 
       try {
-        // Buscamos si ya existe ese token para cualquier usuario
+        // Buscamos si ya existe ese token
         const existing = await strapi.db.query('api::notification-token.notification-token').findOne({
           where: { token: token }
         });
 
         if (existing) {
-          // Si ya existe, lo actualizamos al usuario actual y lo activamos
+          console.log('🔄 Actualizando token existente para el usuario:', user.id);
           const updated = await strapi.db.query('api::notification-token.notification-token').update({
             where: { id: existing.id },
-            data: { user: user.id, active: true }
+            data: {
+              user: user.id,
+              active: true,
+              last_used: new Date()
+            }
           });
           return { data: updated };
         }
 
-        // Si es nuevo, lo creamos
+        console.log('✨ Creando nuevo registro de token para el usuario:', user.id);
         const newToken = await strapi.db.query('api::notification-token.notification-token').create({
           data: {
             token,
             user: user.id,
             active: true,
-            platform: 'android'
+            platform: data.platform || 'android',
+            last_used: new Date()
           },
         });
 
