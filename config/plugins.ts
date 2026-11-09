@@ -41,7 +41,7 @@ export default ({ env }) => ({
         allowedFields: ["name", "type", "token"],
       },
       jwt: {
-        expiresIn: "60d",
+        expiresIn: "3650d",
       },
     },
   },
