@@ -16,7 +16,6 @@ export default [
     },
   },
   'strapi::cors',
-  'strapi::compressed',
   'strapi::poweredBy',
   'strapi::query',
   'strapi::body',
