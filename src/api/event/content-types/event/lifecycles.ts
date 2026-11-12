@@ -113,6 +113,7 @@ async function sendExpoPushNotifications(tokens, title, body, data) {
     title: title,
     body: body,
     priority: 'high',
+    ttl: 86400,
     badge: 1,
     channelId: 'default',
     color: '#004A8B',
@@ -120,20 +121,25 @@ async function sendExpoPushNotifications(tokens, title, body, data) {
     data: data,
   }));
 
-  try {
-    const res = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messages),
-    });
+  const chunkSize = 100;
+  for (let i = 0; i < messages.length; i += chunkSize) {
+    const chunk = messages.slice(i, i + chunkSize);
 
-    const responseJson = await res.json();
-    console.log('✅ [EXPO PUSH API RESPONSE]:', JSON.stringify(responseJson, null, 2));
-  } catch (error) {
-    console.error('❌ [EXPO PUSH API ERROR]:', error?.message || error);
+    try {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(chunk),
+      });
+
+      const responseJson = await res.json();
+      console.log('✅ [EXPO PUSH API RESPONSE]:', JSON.stringify(responseJson, null, 2));
+    } catch (error) {
+      console.error('❌ [EXPO PUSH API ERROR]:', error?.message || error);
+    }
   }
 }
