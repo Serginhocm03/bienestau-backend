@@ -115,6 +115,7 @@ async function sendExpoPushNotifications(tokens, title, body, data) {
     priority: 'high',
     badge: 1,
     channelId: 'default',
+    color: '#004A8B',
     _displayInForeground: true,
     data: data,
   }));
