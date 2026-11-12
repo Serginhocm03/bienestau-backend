@@ -1,5 +1,4 @@
 // @ts-nocheck
-const { Expo } = require('expo-server-sdk');
 
 module.exports = {
   async afterCreate(event) {
@@ -31,7 +30,6 @@ async function processAndNotify(result, type) {
   if (result.publishedAt === null) return;
 
   const docId = result.documentId || result.id?.toString();
-  const expo = new Expo();
 
   try {
     // 1. Gestionar Aviso en DB (Limpiar y Crear)
@@ -57,53 +55,84 @@ async function processAndNotify(result, type) {
     } catch (_) {}
 
     // 2. Envío Push Real
-    let allTokens = [];
-    try {
-      allTokens = await strapi.documents('api::notification-token.notification-token').findMany({});
-    } catch (_) {
-      try {
-        allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
-      } catch (err2) {
-        console.error('❌ Error consultando tokens en BD:', err2?.message);
-      }
-    }
+    const tokens = await getAllActiveTokens();
 
-    console.log(`📊 [EVENTO] Total registros recuperados de BD: ${allTokens?.length || 0}`);
+    const notificationTitle = 'BienestAU 🔔';
+    const notificationBody = `BienestAU te invita al siguiente evento: ${result.title}`;
+    const extraData = { type: 'reminder', contentId: docId, contentType: type };
 
-    const expoTokens = (allTokens || [])
-      .map(t => (typeof t === 'string' ? t : t?.token))
-      .filter(token => token && typeof token === 'string' && Expo.isExpoPushToken(token));
+    await sendExpoPushNotifications(tokens, notificationTitle, notificationBody, extraData);
 
-    console.log(`📱 [PUSH EVENTO] Tokens Expo válidos a notificar: ${expoTokens.length}`, expoTokens);
-
-    if (expoTokens.length > 0) {
-      const messages = expoTokens.map(token => ({
-        to: token,
-        sound: 'default',
-        title: 'BienestAU 🔔',
-        body: `BienestAU te invita al siguiente evento: ${result.title}`,
-        priority: 'high',
-        badge: 1,
-        channelId: 'default',
-        _displayInForeground: true,
-        data: { type: 'reminder', contentId: docId, contentType: type },
-      }));
-
-      const chunks = expo.chunkPushNotifications(messages);
-      for (const chunk of chunks) {
-        try {
-          const tickets = await expo.sendPushNotificationsAsync(chunk);
-          console.log('✅ Tickets respuesta de Expo:', JSON.stringify(tickets, null, 2));
-
-          for (const ticket of tickets) {
-            if (ticket.status === 'error') {
-              console.error(`❌ Error en entrega de ticket (${ticket.details?.error}):`, ticket.message);
-            }
-          }
-        } catch (error) { console.error('❌ Error envío chunk:', error); }
-      }
-    } else {
-      console.log('⚠️ No hay tokens Expo válidos en la BD.');
-    }
   } catch (error) { console.error('❌ Error crítico en processAndNotify:', error); }
+}
+
+async function getAllActiveTokens() {
+  let tokens = [];
+
+  try {
+    const docs = await strapi.documents('api::notification-token.notification-token').findMany({
+      limit: 1000,
+    });
+    if (docs && Array.isArray(docs)) {
+      tokens = docs.map(d => (typeof d === 'string' ? d : d?.token)).filter(Boolean);
+    }
+  } catch (e) {
+    console.log('ℹ️ Document service query notice:', e?.message);
+  }
+
+  if (tokens.length === 0) {
+    try {
+      const records = await strapi.db.query('api::notification-token.notification-token').findMany({});
+      if (records && Array.isArray(records)) {
+        tokens = records.map(r => (typeof r === 'string' ? r : r?.token)).filter(Boolean);
+      }
+    } catch (e) {
+      console.log('ℹ️ DB query notice:', e?.message);
+    }
+  }
+
+  console.log(`📊 [TOKENS EVENTO EN BD]: Total recuperados (${tokens.length})`, tokens);
+  return tokens;
+}
+
+async function sendExpoPushNotifications(tokens, title, body, data) {
+  if (!tokens || tokens.length === 0) {
+    console.log('⚠️ [PUSH] No hay tokens registrados en la BD para notificar.');
+    return;
+  }
+
+  const uniqueTokens = Array.from(
+    new Set(tokens.map(t => (typeof t === 'string' ? t.trim() : '')))
+  ).filter(t => t.length > 0);
+
+  console.log(`📱 [PUSH DISPATCH] Enviando a ${uniqueTokens.length} dispositivos activos:`, uniqueTokens);
+
+  const messages = uniqueTokens.map(token => ({
+    to: token,
+    sound: 'default',
+    title: title,
+    body: body,
+    priority: 'high',
+    badge: 1,
+    channelId: 'default',
+    _displayInForeground: true,
+    data: data,
+  }));
+
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(messages),
+    });
+
+    const responseJson = await res.json();
+    console.log('✅ [EXPO PUSH API RESPONSE]:', JSON.stringify(responseJson, null, 2));
+  } catch (error) {
+    console.error('❌ [EXPO PUSH API ERROR]:', error?.message || error);
+  }
 }
