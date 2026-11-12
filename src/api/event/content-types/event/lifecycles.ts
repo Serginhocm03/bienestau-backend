@@ -1,19 +1,19 @@
 // @ts-nocheck
 const { Expo } = require('expo-server-sdk');
 
-export default {
+module.exports = {
   async afterCreate(event) {
-    const { result } = event;
-    console.log('✨ [EVENT] Creado, disparando notificación...');
+    const { result } = event || {};
+    console.log('✨ [LIFECYCLE afterCreate] Nuevo Evento:', result?.title);
     await processAndNotify(result, 'event');
   },
   async afterUpdate(event) {
-    const { result } = event;
-    console.log('🔄 [EVENT] Actualizado, disparando notificación...');
+    const { result } = event || {};
+    console.log('🔄 [LIFECYCLE afterUpdate] Evento actualizado:', result?.title);
     await processAndNotify(result, 'event');
   },
   async afterDelete(event) {
-    const { result } = event;
+    const { result } = event || {};
     const docId = result?.documentId || result?.id?.toString();
     try {
       const reminders = await strapi.db.query('api::reminder.reminder').findMany({
@@ -61,16 +61,20 @@ async function processAndNotify(result, type) {
     try {
       allTokens = await strapi.documents('api::notification-token.notification-token').findMany({});
     } catch (_) {
-      allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+      try {
+        allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+      } catch (err2) {
+        console.error('❌ Error consultando tokens en BD:', err2?.message);
+      }
     }
 
-    console.log(`📊 [EVENTO] Total tokens en BD: ${allTokens.length}`);
+    console.log(`📊 [EVENTO] Total registros recuperados de BD: ${allTokens?.length || 0}`);
 
-    const expoTokens = allTokens
-      .map(t => t.token)
-      .filter(token => token && Expo.isExpoPushToken(token));
+    const expoTokens = (allTokens || [])
+      .map(t => (typeof t === 'string' ? t : t?.token))
+      .filter(token => token && typeof token === 'string' && Expo.isExpoPushToken(token));
 
-    console.log(`📱 [PUSH EVENTO] Enviando a ${expoTokens.length} dispositivos.`);
+    console.log(`📱 [PUSH EVENTO] Tokens Expo válidos a notificar: ${expoTokens.length}`, expoTokens);
 
     if (expoTokens.length > 0) {
       const messages = expoTokens.map(token => ({
@@ -89,7 +93,7 @@ async function processAndNotify(result, type) {
       for (const chunk of chunks) {
         try {
           const tickets = await expo.sendPushNotificationsAsync(chunk);
-          console.log('✅ Notificación de evento enviada. Respuesta de Expo Tickets:', JSON.stringify(tickets, null, 2));
+          console.log('✅ Tickets respuesta de Expo:', JSON.stringify(tickets, null, 2));
 
           for (const ticket of tickets) {
             if (ticket.status === 'error') {

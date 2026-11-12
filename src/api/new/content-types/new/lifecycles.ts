@@ -1,19 +1,19 @@
 // @ts-nocheck
 const { Expo } = require('expo-server-sdk');
 
-export default {
+module.exports = {
   async afterCreate(event) {
-    const { result } = event;
-    console.log('✨ [TRIGGER] Nueva Noticia creada:', result?.title);
+    const { result } = event || {};
+    console.log('✨ [LIFECYCLE afterCreate] Nueva Noticia:', result?.title);
     await processContentAndNotify(result, 'news');
   },
   async afterUpdate(event) {
-    const { result } = event;
-    console.log('🔄 [TRIGGER] Noticia actualizada:', result?.title);
+    const { result } = event || {};
+    console.log('🔄 [LIFECYCLE afterUpdate] Noticia actualizada:', result?.title);
     await processContentAndNotify(result, 'news');
   },
   async afterDelete(event) {
-    const { result } = event;
+    const { result } = event || {};
     const docId = result?.documentId || result?.id?.toString();
     try {
       const reminders = await strapi.db.query('api::reminder.reminder').findMany({
@@ -62,21 +62,25 @@ async function processContentAndNotify(result, type) {
       console.log('ℹ️ Registro de reminder en DB omitido o fallido:', e?.message);
     }
 
-    // 2. Obtener todos los tokens registrados en la base de datos (con doble estrategia para Strapi v5)
+    // 2. Obtener todos los tokens registrados en la base de datos (doble estrategia para Strapi v5)
     let allTokens = [];
     try {
       allTokens = await strapi.documents('api::notification-token.notification-token').findMany({});
     } catch (_) {
-      allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+      try {
+        allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+      } catch (err2) {
+        console.error('❌ Error consultando tokens en BD:', err2?.message);
+      }
     }
 
-    console.log(`📊 [NOTICIA] Total tokens registrados en BD: ${allTokens.length}`);
+    console.log(`📊 [NOTICIA] Total registros recuperados de BD: ${allTokens?.length || 0}`);
 
-    const expoTokens = allTokens
-      .map(t => t.token)
-      .filter(token => token && Expo.isExpoPushToken(token));
+    const expoTokens = (allTokens || [])
+      .map(t => (typeof t === 'string' ? t : t?.token))
+      .filter(token => token && typeof token === 'string' && Expo.isExpoPushToken(token));
 
-    console.log(`📱 [PUSH NOTICIA] Tokens válidos Expo a notificar: ${expoTokens.length}`);
+    console.log(`📱 [PUSH NOTICIA] Tokens Expo válidos a notificar: ${expoTokens.length}`, expoTokens);
 
     if (expoTokens.length > 0) {
       const messages = expoTokens.map(token => ({
@@ -95,7 +99,7 @@ async function processContentAndNotify(result, type) {
       for (const chunk of chunks) {
         try {
           const tickets = await expo.sendPushNotificationsAsync(chunk);
-          console.log('✅ Notificación de noticia enviada. Respuesta de Expo Tickets:', JSON.stringify(tickets, null, 2));
+          console.log('✅ Tickets respuesta de Expo:', JSON.stringify(tickets, null, 2));
 
           for (const ticket of tickets) {
             if (ticket.status === 'error') {
