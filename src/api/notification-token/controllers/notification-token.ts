@@ -13,34 +13,66 @@ export default factories.createCoreController(
       }
 
       try {
-        // Buscamos si ya existe ese token en la base de datos
-        const existing = await strapi.db.query('api::notification-token.notification-token').findOne({
-          where: { token: token }
-        });
-
-        if (existing) {
-          console.log(`🔄 [PUSH TOKEN] Actualizando token existente ID ${existing.id}: ${token}`);
-          const updated = await strapi.db.query('api::notification-token.notification-token').update({
-            where: { id: existing.id },
-            data: {
-              ...(user ? { user: user.id } : {}),
-              active: true,
-              last_used: new Date()
-            }
+        // En Strapi v5 intentamos primero Document Service y luego DB Query como respaldo
+        let existing = null;
+        try {
+          const docs = await strapi.documents('api::notification-token.notification-token').findMany({
+            filters: { token: { $eq: token } }
           });
-          return { data: updated };
+          if (docs && docs.length > 0) existing = docs[0];
+        } catch (_) {
+          existing = await strapi.db.query('api::notification-token.notification-token').findOne({
+            where: { token: token }
+          });
         }
 
-        console.log(`✨ [PUSH TOKEN] Creando nuevo token en BD: ${token}`);
-        const newToken = await strapi.db.query('api::notification-token.notification-token').create({
-          data: {
-            token,
-            ...(user ? { user: user.id } : {}),
-            active: true,
-            platform: data.platform || 'android',
-            last_used: new Date()
-          },
-        });
+        if (existing) {
+          console.log(`🔄 [PUSH TOKEN] Actualizando token existente (${existing.documentId || existing.id}): ${token}`);
+          if (existing.documentId) {
+            await strapi.documents('api::notification-token.notification-token').update({
+              documentId: existing.documentId,
+              data: {
+                ...(user ? { user: user.id } : {}),
+                active: true,
+                last_used: new Date()
+              }
+            });
+          } else {
+            await strapi.db.query('api::notification-token.notification-token').update({
+              where: { id: existing.id },
+              data: {
+                ...(user ? { user: user.id } : {}),
+                active: true,
+                last_used: new Date()
+              }
+            });
+          }
+          return { data: { success: true } };
+        }
+
+        console.log(`✨ [PUSH TOKEN] Creando nuevo token en la BD: ${token}`);
+        let newToken;
+        try {
+          newToken = await strapi.documents('api::notification-token.notification-token').create({
+            data: {
+              token,
+              ...(user ? { user: user.id } : {}),
+              active: true,
+              platform: data.platform || 'android',
+              last_used: new Date()
+            },
+          });
+        } catch (_) {
+          newToken = await strapi.db.query('api::notification-token.notification-token').create({
+            data: {
+              token,
+              ...(user ? { user: user.id } : {}),
+              active: true,
+              platform: data.platform || 'android',
+              last_used: new Date()
+            },
+          });
+        }
 
         return { data: newToken };
       } catch (error) {

@@ -35,25 +35,35 @@ async function processAndNotify(result, type) {
 
   try {
     // 1. Gestionar Aviso en DB (Limpiar y Crear)
-    const old = await strapi.db.query('api::reminder.reminder').findMany({
-      where: { contentId: docId, contentType: type }
-    });
-    for (const r of old) { await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } }); }
+    try {
+      const old = await strapi.db.query('api::reminder.reminder').findMany({
+        where: { contentId: docId, contentType: type }
+      });
+      for (const r of old) { await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } }); }
+    } catch (_) {}
 
     const titlePrefix = 'BienestAU te invita';
-    await strapi.db.query('api::reminder.reminder').create({
-      data: {
-        title: `${titlePrefix}: ${result.title}`,
-        description: result.description || 'Consulta los detalles en la app',
-        to: 'all',
-        contentId: docId,
-        contentType: type,
-        publishedAt: result.publishedAt || new Date().toISOString(),
-      },
-    });
+    try {
+      await strapi.db.query('api::reminder.reminder').create({
+        data: {
+          title: `${titlePrefix}: ${result.title}`,
+          description: result.description || 'Consulta los detalles en la app',
+          to: 'all',
+          contentId: docId,
+          contentType: type,
+          publishedAt: result.publishedAt || new Date().toISOString(),
+        },
+      });
+    } catch (_) {}
 
     // 2. Envío Push Real
-    const allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+    let allTokens = [];
+    try {
+      allTokens = await strapi.documents('api::notification-token.notification-token').findMany({});
+    } catch (_) {
+      allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+    }
+
     console.log(`📊 [EVENTO] Total tokens en BD: ${allTokens.length}`);
 
     const expoTokens = allTokens
@@ -71,6 +81,7 @@ async function processAndNotify(result, type) {
         priority: 'high',
         badge: 1,
         channelId: 'default',
+        _displayInForeground: true,
         data: { type: 'reminder', contentId: docId, contentType: type },
       }));
 

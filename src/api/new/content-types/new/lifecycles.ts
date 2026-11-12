@@ -37,27 +37,39 @@ async function processContentAndNotify(result, type) {
 
   try {
     // 1. Limpiar avisos viejos para este contenido y crear uno nuevo en la app
-    const existing = await strapi.db.query('api::reminder.reminder').findMany({
-      where: { contentId: docId, contentType: type }
-    });
-    for (const r of existing) {
-      await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
-    }
+    try {
+      const existing = await strapi.db.query('api::reminder.reminder').findMany({
+        where: { contentId: docId, contentType: type }
+      });
+      for (const r of existing) {
+        await strapi.db.query('api::reminder.reminder').delete({ where: { id: r.id } });
+      }
+    } catch (_) {}
 
     const titlePrefix = 'BienestAU te invita';
-    await strapi.db.query('api::reminder.reminder').create({
-      data: {
-        title: `${titlePrefix}: ${result.title}`,
-        description: result.description || 'Consulta los detalles en la app',
-        to: 'all',
-        contentId: docId,
-        contentType: type,
-        publishedAt: result.publishedAt || new Date().toISOString(),
-      },
-    });
+    try {
+      await strapi.db.query('api::reminder.reminder').create({
+        data: {
+          title: `${titlePrefix}: ${result.title}`,
+          description: result.description || 'Consulta los detalles en la app',
+          to: 'all',
+          contentId: docId,
+          contentType: type,
+          publishedAt: result.publishedAt || new Date().toISOString(),
+        },
+      });
+    } catch (e) {
+      console.log('ℹ️ Registro de reminder en DB omitido o fallido:', e?.message);
+    }
 
-    // 2. Obtener todos los tokens registrados en la base de datos
-    const allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+    // 2. Obtener todos los tokens registrados en la base de datos (con doble estrategia para Strapi v5)
+    let allTokens = [];
+    try {
+      allTokens = await strapi.documents('api::notification-token.notification-token').findMany({});
+    } catch (_) {
+      allTokens = await strapi.db.query('api::notification-token.notification-token').findMany({});
+    }
+
     console.log(`📊 [NOTICIA] Total tokens registrados en BD: ${allTokens.length}`);
 
     const expoTokens = allTokens
@@ -75,6 +87,7 @@ async function processContentAndNotify(result, type) {
         priority: 'high',
         badge: 1,
         channelId: 'default',
+        _displayInForeground: true,
         data: { type: 'reminder', contentId: docId, contentType: type },
       }));
 
